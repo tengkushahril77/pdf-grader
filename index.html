@@ -496,8 +496,8 @@
 
                     // Try multiple API endpoints in order
                     const possibleUrls = [
-                        '/api',                               // Netlify Functions
-                        window.location.origin + '/api',      // Same domain
+                        window.location.origin,               // Same domain as Railway
+                        '/api',                               // Relative API path
                         'https://admelaka.com/api'            // Fallback
                     ];
 
@@ -506,30 +506,18 @@
 
                     for (const serverUrl of possibleUrls) {
                         try {
-                            console.log(`Trying API endpoint: ${serverUrl}/analyze`);
+                            console.log(`Trying API endpoint: ${serverUrl}/api/analyze`);
 
-                            // Convert files to base64 for Netlify Functions
-                            const pdfBase64 = await this.fileToBase64(this.pdfFile);
-                            const rubricBase64 = await this.fileToBase64(this.rubricFile);
+                            const formData = new FormData();
+                            formData.append('pdfFile', this.pdfFile);
+                            formData.append('rubricFile', this.rubricFile);
+                            if (customInstructions) {
+                                formData.append('customInstructions', customInstructions);
+                            }
 
-                            const requestBody = {
-                                pdfFile: {
-                                    content: pdfBase64,
-                                    filename: this.pdfFile.name
-                                },
-                                rubricFile: {
-                                    content: rubricBase64,
-                                    filename: this.rubricFile.name
-                                },
-                                customInstructions: customInstructions
-                            };
-
-                            const response = await fetch(`${serverUrl}/analyze`, {
+                            const response = await fetch(`${serverUrl}/api/analyze`, {
                                 method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(requestBody)
+                                body: formData
                             });
 
                             // Check if response is JSON
