@@ -345,7 +345,7 @@
             <div class="api-section">
                 <h3><span class="icon">⚙️</span>Analysis Configuration</h3>
                 <!-- Backend API URL for admelaka.com - Multiple options -->
-                <input type="hidden" id="serverUrl" value="https://admelaka.com:3000">
+                <input type="hidden" id="serverUrl" value="">
                 <div class="form-group">
                     <label for="customInstructions">Additional Instructions (Optional):</label>
                     <textarea id="customInstructions" placeholder="Any specific grading criteria or focus areas..."></textarea>
@@ -386,6 +386,19 @@
                 this.pdfFile = null;
                 this.rubricFile = null;
                 this.initializeEventListeners();
+            }
+
+            fileToBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => {
+                        // Remove the data:mime/type;base64, prefix
+                        const base64 = reader.result.split(',')[1];
+                        resolve(base64);
+                    };
+                    reader.onerror = error => reject(error);
+                });
             }
 
             initializeEventListeners() {
@@ -483,10 +496,9 @@
 
                     // Try multiple API endpoints in order
                     const possibleUrls = [
-                        'https://admelaka.com:3000',           // Direct port access
-                        'https://admelaka.com/grading',       // Proxy through web server
-                        window.location.origin,               // Same domain as frontend
-                        'http://admelaka.com:3000'            // HTTP fallback
+                        '/api',                               // Netlify Functions
+                        window.location.origin + '/api',      // Same domain
+                        'https://admelaka.com/api'            // Fallback
                     ];
 
                     let lastError = null;
@@ -494,19 +506,30 @@
 
                     for (const serverUrl of possibleUrls) {
                         try {
-                            console.log(`Trying API endpoint: ${serverUrl}/api/analyze`);
+                            console.log(`Trying API endpoint: ${serverUrl}/analyze`);
 
-                            const formData = new FormData();
-                            formData.append('pdfFile', this.pdfFile);
-                            formData.append('rubricFile', this.rubricFile);
-                            if (customInstructions) {
-                                formData.append('customInstructions', customInstructions);
-                            }
+                            // Convert files to base64 for Netlify Functions
+                            const pdfBase64 = await this.fileToBase64(this.pdfFile);
+                            const rubricBase64 = await this.fileToBase64(this.rubricFile);
 
-                            const response = await fetch(`${serverUrl}/api/analyze`, {
+                            const requestBody = {
+                                pdfFile: {
+                                    content: pdfBase64,
+                                    filename: this.pdfFile.name
+                                },
+                                rubricFile: {
+                                    content: rubricBase64,
+                                    filename: this.rubricFile.name
+                                },
+                                customInstructions: customInstructions
+                            };
+
+                            const response = await fetch(`${serverUrl}/analyze`, {
                                 method: 'POST',
-                                body: formData,
-                                timeout: 30000 // 30 second timeout
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(requestBody)
                             });
 
                             // Check if response is JSON
