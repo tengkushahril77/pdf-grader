@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const path = require('path');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -21,6 +22,9 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Serve static files (HTML, CSS, JS)
+app.use(express.static(path.join(__dirname, '.')));
+
 const storage = multer.memoryStorage();
 const upload = multer({ 
     storage: storage,
@@ -30,13 +34,7 @@ const upload = multer({
 });
 
 app.get('/', (req, res) => {
-    res.json({ 
-        message: 'PDF Grader Backend API',
-        version: '1.0.0',
-        endpoints: {
-            'POST /api/analyze': 'Analyze PDF with rubric using Google Gemini AI'
-        }
-    });
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 async function extractTextFromPDF(buffer) {
