@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Grader with Google Gemini AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border: 2px dashed #dee2e6;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: #4facfe;
+            background: #f0f8ff;
+        }
+
+        .upload-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #4facfe;
+            background: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: #e3f2fd;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e8f5e8;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .api-section {
+            grid-column: 1 / -1;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .analyze-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .analyze-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-section {
+            grid-column: 1 / -1;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .feedback-box {
+            background: white;
+            border: 3px solid #333;
+            border-radius: 15px;
+            padding: 30px;
+            min-height: 300px;
+        }
+
+        .feedback-box h3 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            margin: 0 0 20px 0;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .feedback-content {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .feedback-content ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+
+        .feedback-content li {
+            margin-bottom: 8px;
+            list-style-type: disc;
+        }
+
+        .score-box {
+            background: white;
+            border: 3px solid #333;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            height: fit-content;
+        }
+
+        .score-box h3 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            margin: 0 0 20px 0;
+            letter-spacing: 1px;
+        }
+
+        .score-display {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #4facfe;
+            margin: 0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #ffe6e6;
+            color: #d63031;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .icon {
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .score-display {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 PDF Grader with Google Gemini AI</h1>
+            <p>Upload your PDF document and rubric for intelligent assessment</p>
+        </div>
+
+        <div class="main-content">
+            <div class="upload-section">
+                <h3><span class="icon">📄</span>Upload PDF Document</h3>
+                <div class="upload-area" id="pdfUpload">
+                    <input type="file" id="pdfFile" class="file-input" accept=".pdf">
+                    <div class="upload-text">
+                        <strong>Click to upload</strong> or drag and drop your PDF file here
+                    </div>
+                </div>
+                <div id="pdfInfo" class="file-info"></div>
+            </div>
+
+            <div class="upload-section">
+                <h3><span class="icon">📋</span>Upload Rubric</h3>
+                <div class="upload-area" id="rubricUpload">
+                    <input type="file" id="rubricFile" class="file-input" accept=".pdf,.txt,.docx">
+                    <div class="upload-text">
+                        <strong>Click to upload</strong> or drag and drop your rubric file here<br>
+                        <small>Supports PDF, TXT, DOCX formats</small>
+                    </div>
+                </div>
+                <div id="rubricInfo" class="file-info"></div>
+            </div>
+
+            <div class="api-section">
+                <h3><span class="icon">⚙️</span>Analysis Configuration</h3>
+                <!-- Backend API URL for admelaka.com - Multiple options -->
+                <input type="hidden" id="serverUrl" value="https://admelaka.com:3000">
+                <div class="form-group">
+                    <label for="customInstructions">Additional Instructions (Optional):</label>
+                    <textarea id="customInstructions" placeholder="Any specific grading criteria or focus areas..."></textarea>
+                </div>
+                <button class="analyze-btn" id="analyzeBtn" disabled>
+                    <span class="icon">🤖</span> Analyze Document
+                </button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your document with Google Gemini AI...</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="results-section" id="results">
+            <div class="results-grid">
+                <div class="feedback-box">
+                    <h3>AI FEEDBACK</h3>
+                    <div id="feedback" class="feedback-content">
+                        <p>Upload and analyze a document to see detailed feedback here.</p>
+                    </div>
+                </div>
+                
+                <div class="score-box">
+                    <h3>TOTAL SCORE</h3>
+                    <div id="scoreNumber" class="score-display">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class PDFGrader {
+            constructor() {
+                this.pdfFile = null;
+                this.rubricFile = null;
+                this.initializeEventListeners();
+            }
+
+            initializeEventListeners() {
+                const pdfUpload = document.getElementById('pdfUpload');
+                const pdfFileInput = document.getElementById('pdfFile');
+                const rubricUpload = document.getElementById('rubricUpload');
+                const rubricFileInput = document.getElementById('rubricFile');
+                const analyzeBtn = document.getElementById('analyzeBtn');
+
+                pdfUpload.addEventListener('click', () => pdfFileInput.click());
+                rubricUpload.addEventListener('click', () => rubricFileInput.click());
+
+                pdfFileInput.addEventListener('change', (e) => this.handlePDFUpload(e));
+                rubricFileInput.addEventListener('change', (e) => this.handleRubricUpload(e));
+
+                this.setupDragAndDrop(pdfUpload, pdfFileInput, 'pdf');
+                this.setupDragAndDrop(rubricUpload, rubricFileInput, 'rubric');
+
+                analyzeBtn.addEventListener('click', () => this.analyzeDocument());
+            }
+
+            setupDragAndDrop(dropArea, fileInput, type) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dropArea.addEventListener(eventName, this.preventDefaults);
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'));
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'));
+                });
+
+                dropArea.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        fileInput.files = files;
+                        if (type === 'pdf') {
+                            this.handlePDFUpload({ target: { files: files } });
+                        } else {
+                            this.handleRubricUpload({ target: { files: files } });
+                        }
+                    }
+                });
+            }
+
+            preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            handlePDFUpload(e) {
+                const file = e.target.files[0];
+                if (file && file.type === 'application/pdf') {
+                    this.pdfFile = file;
+                    document.getElementById('pdfInfo').innerHTML = `
+                        <strong>Selected:</strong> ${file.name} (${this.formatFileSize(file.size)})
+                    `;
+                    document.getElementById('pdfInfo').style.display = 'block';
+                    this.checkFormValid();
+                } else {
+                    this.showError('Please select a valid PDF file.');
+                }
+            }
+
+            handleRubricUpload(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    this.rubricFile = file;
+                    document.getElementById('rubricInfo').innerHTML = `
+                        <strong>Selected:</strong> ${file.name} (${this.formatFileSize(file.size)})
+                    `;
+                    document.getElementById('rubricInfo').style.display = 'block';
+                    this.checkFormValid();
+                }
+            }
+
+            checkFormValid() {
+                const analyzeBtn = document.getElementById('analyzeBtn');
+                
+                if (this.pdfFile && this.rubricFile) {
+                    analyzeBtn.disabled = false;
+                } else {
+                    analyzeBtn.disabled = true;
+                }
+            }
+
+            async analyzeDocument() {
+                try {
+                    this.showLoading(true);
+                    this.hideError();
+
+                    const customInstructions = document.getElementById('customInstructions').value.trim();
+
+                    // Try multiple API endpoints in order
+                    const possibleUrls = [
+                        'https://admelaka.com:3000',           // Direct port access
+                        'https://admelaka.com/grading',       // Proxy through web server
+                        window.location.origin,               // Same domain as frontend
+                        'http://admelaka.com:3000'            // HTTP fallback
+                    ];
+
+                    let lastError = null;
+                    let success = false;
+
+                    for (const serverUrl of possibleUrls) {
+                        try {
+                            console.log(`Trying API endpoint: ${serverUrl}/api/analyze`);
+
+                            const formData = new FormData();
+                            formData.append('pdfFile', this.pdfFile);
+                            formData.append('rubricFile', this.rubricFile);
+                            if (customInstructions) {
+                                formData.append('customInstructions', customInstructions);
+                            }
+
+                            const response = await fetch(`${serverUrl}/api/analyze`, {
+                                method: 'POST',
+                                body: formData,
+                                timeout: 30000 // 30 second timeout
+                            });
+
+                            // Check if response is JSON
+                            const contentType = response.headers.get('content-type');
+                            if (!contentType || !contentType.includes('application/json')) {
+                                throw new Error(`Server returned ${contentType} instead of JSON. Trying next endpoint...`);
+                            }
+
+                            const data = await response.json();
+
+                            if (!response.ok) {
+                                throw new Error(data.error || `Server error: ${response.status}`);
+                            }
+
+                            if (!data.success) {
+                                throw new Error(data.error || 'Analysis failed');
+                            }
+
+                            this.displayResults(data.result);
+                            success = true;
+                            break; // Success! Exit the loop
+
+                        } catch (error) {
+                            console.warn(`Failed with ${serverUrl}:`, error.message);
+                            lastError = error;
+                            continue; // Try next URL
+                        }
+                    }
+
+                    if (!success) {
+                        throw lastError || new Error('All API endpoints failed');
+                    }
+
+                } catch (error) {
+                    console.error('Analysis error:', error);
+                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                        this.showError('Unable to connect to backend server. Please ensure the server is running and the URL is correct.');
+                    } else {
+                        this.showError('Analysis failed: ' + error.message);
+                    }
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            displayResults(result) {
+                document.getElementById('scoreNumber').textContent = result.score;
+                
+                // Handle feedback - could be string or array
+                let feedbackText = result.feedback;
+                
+                // Convert to string if it's an array
+                if (Array.isArray(feedbackText)) {
+                    feedbackText = feedbackText.join('\n');
+                } else if (typeof feedbackText !== 'string') {
+                    feedbackText = String(feedbackText);
+                }
+                
+                // Remove any remaining JSON formatting
+                feedbackText = feedbackText
+                    .replace(/```json/g, '')
+                    .replace(/```/g, '')
+                    .replace(/{\s*"score":[^}]*}/g, '')
+                    .replace(/"\s*,\s*"/g, '')
+                    .replace(/^["'\s]+|["'\s]+$/g, '')
+                    .trim();
+                
+                // Convert bullet points to proper HTML list
+                let feedbackHtml;
+                if (feedbackText.includes('•')) {
+                    const bulletPoints = feedbackText.split('•').filter(item => item.trim());
+                    feedbackHtml = '<ul>' + bulletPoints.map(item => `<li>${item.trim()}</li>`).join('') + '</ul>';
+                } else if (feedbackText.includes('\n')) {
+                    // Handle line breaks
+                    const lines = feedbackText.split('\n').filter(line => line.trim());
+                    if (lines.length > 1) {
+                        feedbackHtml = '<ul>' + lines.map(line => `<li>${line.trim()}</li>`).join('') + '</ul>';
+                    } else {
+                        feedbackHtml = `<p>${feedbackText}</p>`;
+                    }
+                } else {
+                    feedbackHtml = `<p>${feedbackText}</p>`;
+                }
+                
+                document.getElementById('feedback').innerHTML = feedbackHtml;
+                document.getElementById('results').classList.add('show');
+                document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+            }
+
+            showLoading(show) {
+                document.getElementById('loading').classList.toggle('show', show);
+            }
+
+            showError(message) {
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.textContent = message;
+                errorDiv.classList.add('show');
+            }
+
+            hideError() {
+                document.getElementById('errorMessage').classList.remove('show');
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new PDFGrader();
+        });
+    </script>
+</body>
+</html>
